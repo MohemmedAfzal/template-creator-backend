@@ -1,0 +1,1 @@
+package com.example.textexpander.repository; import org.springframework.data.jpa.repository.JpaRepository; import com.example.textexpander.entity.Signature; public interface SignatureRepository extends JpaRepository<Signature, Long> {}
