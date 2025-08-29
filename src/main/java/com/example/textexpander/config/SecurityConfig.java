@@ -31,7 +31,8 @@ public class SecurityConfig {
                         // Allow public pages and static assets
                         .requestMatchers(
                                 new AntPathRequestMatcher("/login"),
-                                new AntPathRequestMatcher("/signup")
+                                new AntPathRequestMatcher("/signup"),
+        new AntPathRequestMatcher("/validate/**")
 //                                new AntPathRequestMatcher("/css/**"),
 //                                new AntPathRequestMatcher("/js/**")
                         ).permitAll()
