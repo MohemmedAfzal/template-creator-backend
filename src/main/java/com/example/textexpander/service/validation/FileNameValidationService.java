@@ -8,9 +8,9 @@ import java.util.*;
 public class FileNameValidationService {
 
     private static final Map<String, String> macroPatterns = Map.of(
-            "ccd.inc", "<domain>-<trackingId>-<sourceSystem>-<version>-<frequency>-<timestamp>.<fileType>",
-            "usha.india", "<domain>.<trackingId>-<sourceSystem>-<version>-<frequency>-<timestamp_milli>.<fileType>",
-            "edifecs", "<domain>-<trackingId>-<sourceSystem>-<version>-<frequency>-<timestamp_milli>.<fileType>",
+            "ccd.inc", "<domain>-<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp>.<fileType>",
+            "usha.india", "<domain>.<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp_milli>.<fileType>",
+            "edifecs", "<domain>-<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp_milli>.<fileType>",
             "hd.i", "<unknown>.<fileType>"
     );
 
@@ -22,14 +22,16 @@ public class FileNameValidationService {
     );
 
     private static final Map<String, String> validationRules = Map.of(
-            "domain", "^(Provider|Member|Reference|Finance|PA|TPL|Claims|Rebate|PAI|FWAFinder)$",
-            "trackingId", "^[A-Z0-9]{9}$",
-            "version", "^V[1-9][0-9]{0,2}$",
-            "frequency", "^(Hourly|Daily|Weekly|BiWeekly|Monthly|Quarterly|BiAnnually|Annually|Event|AdHoc)$",
+            "domain", "^(?i)(Provider|Member|Reference|Finance|PA|TPL|Claims|Rebate|PAI|FWAFinder)$",
+            "filedetailstrackingId", "^(?i)[A-Z0-9_]+_[A-Z0-9_]{9}",
+            "sourceSystem", "^(?i)(PBMS|EDI|MMIS|FWAFinder|EDW)$",
+            "version", "^(?i)V[1-9][0-9]{0,2}$",
+            "frequency", "^(?i)(Hourly|Daily|Weekly|BiWeekly|Monthly|Quarterly|BiAnnually|Annually|Event|AdHoc)$",
             "timestamp", "^\\d{14}$",
-            "timestamp_milli", "^\\d{17}$",
-            "fileType", "^\\.(txt|xml|csv|html|dat|zip|log|Edi|x12)$"
+            //"timestamp_milli", "^\\d{17}$",
+            "fileType", "^(?i)\\.(txt|xml|csv|html|dat|zip|log|edi|x12)$"
     );
+
 
     public String getFilePatternHavingMacros(String destinationAccountId, String agreementId, String destinationChannelId) {
         return macroPatterns.getOrDefault(destinationAccountId, null);

@@ -33,7 +33,7 @@ public class FileNameValidationProcessor {
 //                return "Filename did not match with inbox pattern";
 //            }
 //        }
-        return null;
+        return "Hurray!!!\nIt's a Match:)";
     }
 
     public boolean validateFileName(String destinationAccountId, String fileName, String destinationChannelId, String agreementId) {
@@ -79,11 +79,17 @@ public class FileNameValidationProcessor {
                 for (String ruleName : rules.keySet()) {
                     String patternStr = rules.get(ruleName);
                     String part = null;
-                    try { part = fileMatcher.group(ruleName); } catch (IllegalArgumentException ignore) {}
+                    try {
+                        part = fileMatcher.group(ruleName);
+                    } catch (Exception e) {
+                        log.error(e.getMessage(), e);
+                    }
                     if (part != null) {
+                        String toValidate = ruleName.equals("fileType") ? "." + part : part;
                         Pattern p = Pattern.compile(patternStr);
-                        if (!p.matcher(part).matches()) {
-                            return false; // component failed validation
+                        if (!p.matcher(toValidate).matches())
+                        {
+                            return false;
                         }
                     }
                 }
