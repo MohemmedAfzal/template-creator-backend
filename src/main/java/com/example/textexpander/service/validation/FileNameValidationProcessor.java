@@ -1,19 +1,18 @@
 package com.example.textexpander.service.validation;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class FileNameValidationProcessor {
     private final FileNameValidationService fileNameValidationService;
 
@@ -46,26 +45,18 @@ public class FileNameValidationProcessor {
         }
     }
 
-    private boolean validate(String destinationAccountId, String fileName, String destinationChannelId, String agreementId) {
-        FileNameValidationService.MacroEntity macro = fileNameValidationService.findMacroByDestinationAccountId(destinationAccountId);
-        if (macro != null && destinationAccountId.equalsIgnoreCase(macro.getCreatorAccountId())
-                && (agreementId.equalsIgnoreCase(macro.getId())
-                || destinationChannelId.equalsIgnoreCase(Objects.requireNonNull(macro).getId()))) {
+    private boolean validate(String destinationAccountId, String fileName, String agreementId, String destinationChannelId) throws Exception {
+        String macroPattern = fileNameValidationService.getFilePatternHavingMacros(destinationAccountId, agreementId, destinationChannelId);
 
-            FileNameValidationService.FileValidationEntity ruleEntity = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);
+        if (macroPattern != null) {
+            Map<String, String> rules = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);
 
-            if (ruleEntity == null || ruleEntity.getConfig() == null) {
-                return false; //TODO: check whether we need to return true or false if rule not found for particular macro
+            if (rules == null || rules.isEmpty()) {
+                return false; //TODO: check whether it is true or false
             }
 
             try {
-                // Parse rules JSON
-                ObjectMapper mapper = new ObjectMapper();
-                List<Map<String, Object>> rules = mapper.readValue(ruleEntity.getConfig(), new TypeReference<List<Map<String, Object>>>() {
-                });
-
-                // Build regex for macro pattern, replace <component> with (.+)
-                String macroPattern = macro.getPattern();
+                // Build regex for macro pattern, replace <component> with named group
                 List<String> components = new ArrayList<>();
                 Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
 
@@ -82,14 +73,14 @@ public class FileNameValidationProcessor {
                 Pattern macroRegex = Pattern.compile(regexBuilder.toString());
                 Matcher fileMatcher = macroRegex.matcher(fileName);
 
-                if (!fileMatcher.matches()) return false;
+                if (!fileMatcher.matches())
+                    return false;
 
-                // Validate each component with its rule
-                for (Map<String, Object> rule : rules) {
-                    String ruleName = (String) rule.get("rule_name");
-                    String patternStr = (String) rule.get("pattern");
-                    if (fileMatcher.group(ruleName) != null) {
-                        String part = fileMatcher.group(ruleName);
+                for (String ruleName : rules.keySet()) {
+                    String patternStr = rules.get(ruleName);
+                    String part = null;
+                    try { part = fileMatcher.group(ruleName); } catch (IllegalArgumentException ignore) {}
+                    if (part != null) {
                         Pattern p = Pattern.compile(patternStr);
                         if (!p.matcher(part).matches()) {
                             return false; // component failed validation
@@ -98,7 +89,7 @@ public class FileNameValidationProcessor {
                 }
                 return true; // all validations passed
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.error(ex.getMessage(), ex);
                 return false;
             }
         }
