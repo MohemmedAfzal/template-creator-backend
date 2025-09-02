@@ -13,8 +13,8 @@ public class FileNameValidationController {
         this.fileNameValidationProcessor = fileNameValidationProcessor;
     }
 
-    @GetMapping("validate/{fileName}")
-    public String validate(@PathVariable String fileName) {
-        return fileNameValidationProcessor.process(fileName);
+    @GetMapping("validate/{accountId}/{fileName}")
+    public String validate(@PathVariable String accountId, @PathVariable String fileName) {
+        return fileNameValidationProcessor.process(fileName, accountId);
     }
 }

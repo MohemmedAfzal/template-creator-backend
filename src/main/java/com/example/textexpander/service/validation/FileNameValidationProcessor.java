@@ -16,9 +16,9 @@ import java.util.regex.Pattern;
 public class FileNameValidationProcessor {
     private final FileNameValidationService fileNameValidationService;
 
-    public String process(String fileName) {
+    public String process(String fileName, String destinationAccountId) {
         final String sourceAccountId = "mohaafza";
-        final String destinationAccountId = "ccd.inc";
+        //final String destinationAccountId = "ccd.inc";
         final String destinationChannelId = "inboxId1";
         final String agreementId = "agreementId1";
 
@@ -45,30 +45,45 @@ public class FileNameValidationProcessor {
         }
     }
 
-    private boolean validate(String destinationAccountId, String fileName, String agreementId, String destinationChannelId) throws Exception {
+    private boolean validate(
+            String destinationAccountId,
+            String fileName,
+            String agreementId,
+            String destinationChannelId
+    ) throws Exception {
         String macroPattern = fileNameValidationService.getFilePatternHavingMacros(destinationAccountId, agreementId, destinationChannelId);
 
         if (macroPattern != null) {
             Map<String, String> rules = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);
 
             if (rules == null || rules.isEmpty()) {
-                return false; //TODO: check whether it is true or false
+                return false;
             }
 
             try {
-                // Build regex for macro pattern, replace <component> with named group
+                // Build regex matching separators exactly
                 List<String> components = new ArrayList<>();
-                Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
-
                 StringBuilder regexBuilder = new StringBuilder();
+
+                Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
                 int lastEnd = 0;
                 while (m.find()) {
-                    regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd, m.start())));
-                    regexBuilder.append("(?<").append(m.group(1)).append(">.+)");
+                    String sep = macroPattern.substring(lastEnd, m.start());
+                    regexBuilder.append(Pattern.quote(sep));
+                    String charClass = sep.isEmpty() ? "" : escapeForCharClass(sep);
+                    // If separator is empty, allow anything except separator itself (but there is no separator!)
+                    regexBuilder.append("(?<").append(m.group(1)).append(">");
+                    if (!charClass.isEmpty()) {
+                        regexBuilder.append("[^").append(charClass).append("]+");
+                    } else {
+                        regexBuilder.append(".+"); // fallback: match anything
+                    }
+                    regexBuilder.append(")");
                     components.add(m.group(1));
                     lastEnd = m.end();
                 }
-                regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd)));
+                String trailing = macroPattern.substring(lastEnd);
+                regexBuilder.append(Pattern.quote(trailing));
 
                 Pattern macroRegex = Pattern.compile(regexBuilder.toString());
                 Matcher fileMatcher = macroRegex.matcher(fileName);
@@ -76,6 +91,7 @@ public class FileNameValidationProcessor {
                 if (!fileMatcher.matches())
                     return false;
 
+                // Validate each component against rules
                 for (String ruleName : rules.keySet()) {
                     String patternStr = rules.get(ruleName);
                     String part = null;
@@ -87,18 +103,25 @@ public class FileNameValidationProcessor {
                     if (part != null) {
                         String toValidate = ruleName.equals("fileType") ? "." + part : part;
                         Pattern p = Pattern.compile(patternStr);
-                        if (!p.matcher(toValidate).matches())
-                        {
+                        if (!p.matcher(toValidate).matches()) {
                             return false;
                         }
                     }
                 }
-                return true; // all validations passed
+                return true;
             } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
                 return false;
             }
         }
         return true;
+    }
+    private static String escapeForCharClass(String sep) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : sep.toCharArray()) {
+            if ("\\^-[]".indexOf(c) >= 0) sb.append('\\');
+            sb.append(c);
+        }
+        return sb.toString();
     }
 }

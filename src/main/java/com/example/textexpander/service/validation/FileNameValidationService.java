@@ -9,7 +9,7 @@ public class FileNameValidationService {
 
     private static final Map<String, String> macroPatterns = Map.of(
             "ccd.inc", "<domain>-<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp>.<fileType>",
-            "usha.india", "<domain>.<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp_milli>.<fileType>",
+            "usha.india", "<domain>.<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp>.<fileType>",
             "edifecs", "<domain>-<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<timestamp_milli>.<fileType>",
             "hd.i", "<unknown>.<fileType>"
     );
