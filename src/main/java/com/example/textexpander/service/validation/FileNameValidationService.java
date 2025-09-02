@@ -10,7 +10,7 @@ public class FileNameValidationService {
     private static final Map<String, String> macroPatterns = Map.of(
             "ccd.inc", "<domain>-<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<yyyymmddhhmmss>.<fileType>",
             "usha.india", "<domain>.<filedetailstrackingId>-<sourceSystem>-<version>-<frequency>-<yyyymmddhhmmss>.<fileType>",
-            "edifecs", "<domain>ggh-<fileTrackingDetailsRSP>.<sourceSystem>_<version>-<frequency>_<yyyymmddhhmmssSSS>.<fileType>",
+            "edifecs", "<domain>-<fileTrackingDetails>_rsp-<sourceSystem>_<version>-<frequency>_<yyyymmddhhmmssSSS>.<fileType>",
             "hd.i", "<unknown>.<fileType>"
     );
 
@@ -36,7 +36,7 @@ public class FileNameValidationService {
             "edifecs", Map.of(
                     "domain", "^(?i)(Provider|Member|Reference|Finance|PA|TPL|Claims|Rebate|PAI|FWAFinder)$",
                     //"filedetailstrackingId", "^(?i)[A-Z0-9_]+_[A-Z0-9_]{9}+_{rsp}",
-                    "fileTrackingDetailsRSP", "^(?i)[A-Z0-9_]+_[A-Z0-9_]{9}_rsp$",
+                    "fileTrackingDetails", "^(?i)[A-Z0-9_]+_[A-Z0-9_]{9}$",
                     "sourceSystem", "^(?i)(PBMS|EDI|MMIS|FWAFinder|EDW)$",
                     "version", "^(?i)V[1-9][0-9]{0,2}$",
                     "frequency", "^(?i)(Hourly|Daily|Weekly|BiWeekly|Monthly|Quarterly|BiAnnually|Annually|Event|AdHoc)$",
