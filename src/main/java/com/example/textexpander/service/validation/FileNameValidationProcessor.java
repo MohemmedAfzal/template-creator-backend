@@ -61,7 +61,7 @@ public class FileNameValidationProcessor {
             }
 
             try {
-                // Build regex matching separators exactly
+                // Build regex matching all hardcoded text exactly
                 List<String> components = new ArrayList<>();
                 StringBuilder regexBuilder = new StringBuilder();
 
@@ -69,27 +69,28 @@ public class FileNameValidationProcessor {
                 int lastEnd = 0;
                 while (m.find()) {
                     String sep = macroPattern.substring(lastEnd, m.start());
-                    regexBuilder.append(Pattern.quote(sep));
+                    regexBuilder.append(Pattern.quote(sep)); // quote the hardcoded text
+
                     String charClass = sep.isEmpty() ? "" : escapeForCharClass(sep);
-                    // If separator is empty, allow anything except separator itself (but there is no separator!)
                     regexBuilder.append("(?<").append(m.group(1)).append(">");
                     if (!charClass.isEmpty()) {
                         regexBuilder.append("[^").append(charClass).append("]+");
                     } else {
-                        regexBuilder.append(".+"); // fallback: match anything
+                        regexBuilder.append(".+");
                     }
                     regexBuilder.append(")");
                     components.add(m.group(1));
                     lastEnd = m.end();
                 }
                 String trailing = macroPattern.substring(lastEnd);
-                regexBuilder.append(Pattern.quote(trailing));
+                regexBuilder.append(Pattern.quote(trailing)); // quote any trailing hardcoded text
 
                 Pattern macroRegex = Pattern.compile(regexBuilder.toString());
                 Matcher fileMatcher = macroRegex.matcher(fileName);
 
-                if (!fileMatcher.matches())
+                if (!fileMatcher.matches()) {
                     return false;
+                }
 
                 // Validate each component against rules
                 for (String ruleName : rules.keySet()) {
@@ -101,9 +102,8 @@ public class FileNameValidationProcessor {
                         log.error(e.getMessage(), e);
                     }
                     if (part != null) {
-                        String toValidate = ruleName.equals("fileType") ? "." + part : part;
                         Pattern p = Pattern.compile(patternStr);
-                        if (!p.matcher(toValidate).matches()) {
+                        if (!p.matcher(part).matches()) {
                             return false;
                         }
                     }
@@ -117,6 +117,7 @@ public class FileNameValidationProcessor {
         return true;
     }
     private static String escapeForCharClass(String sep) {
+        // Escape only char-class special characters
         StringBuilder sb = new StringBuilder();
         for (char c : sep.toCharArray()) {
             if ("\\^-[]".indexOf(c) >= 0) sb.append('\\');
