@@ -50,70 +50,51 @@ public class FileNameValidationProcessor {
             String fileName,
             String agreementId,
             String destinationChannelId
-    ) throws Exception {
-        String macroPattern = fileNameValidationService.getFilePatternHavingMacros(destinationAccountId, agreementId, destinationChannelId);
+    ) {
+        // 1. Get the macro pattern
+        String macroPattern = fileNameValidationService.getFilePatternHavingMacros(
+                destinationAccountId, agreementId, destinationChannelId);
 
-        if (macroPattern != null) {
-            Map<String, String> rules = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);
+        if (macroPattern == null) {
+            // No pattern to validate against, accept any file name
+            return true;
+        }
 
-            if (rules == null || rules.isEmpty()) {
-                return false;
-            }
+        // 2. Build regex from macro pattern
+        StringBuilder regexBuilder = new StringBuilder();
+        Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
+        int lastEnd = 0;
+        List<String> groupNames = new ArrayList<>();
+        while (m.find()) {
+            regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd, m.start())));
+            regexBuilder.append("(?<").append(m.group(1)).append(">.+?)");
+            groupNames.add(m.group(1));
+            lastEnd = m.end();
+        }
+        regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd)));
 
-            try {
-                // Build regex matching all hardcoded text exactly
-                List<String> components = new ArrayList<>();
-                StringBuilder regexBuilder = new StringBuilder();
+        Pattern pattern = Pattern.compile(regexBuilder.toString());
+        Matcher matcher = pattern.matcher(fileName);
 
-                Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
-                int lastEnd = 0;
-                while (m.find()) {
-                    String sep = macroPattern.substring(lastEnd, m.start());
-                    regexBuilder.append(Pattern.quote(sep)); // quote the hardcoded text
+        // 3. If regex doesn't match, invalid
+        if (!matcher.matches()) {
+            return false;
+        }
 
-                    String charClass = sep.isEmpty() ? "" : escapeForCharClass(sep);
-                    regexBuilder.append("(?<").append(m.group(1)).append(">");
-                    if (!charClass.isEmpty()) {
-                        regexBuilder.append("[^").append(charClass).append("]+");
-                    } else {
-                        regexBuilder.append(".+");
-                    }
-                    regexBuilder.append(")");
-                    components.add(m.group(1));
-                    lastEnd = m.end();
-                }
-                String trailing = macroPattern.substring(lastEnd);
-                regexBuilder.append(Pattern.quote(trailing)); // quote any trailing hardcoded text
-
-                Pattern macroRegex = Pattern.compile(regexBuilder.toString());
-                Matcher fileMatcher = macroRegex.matcher(fileName);
-
-                if (!fileMatcher.matches()) {
-                    return false;
-                }
-
-                // Validate each component against rules
-                for (String ruleName : rules.keySet()) {
-                    String patternStr = rules.get(ruleName);
-                    String part = null;
-                    try {
-                        part = fileMatcher.group(ruleName);
-                    } catch (Exception e) {
-                        log.error(e.getMessage(), e);
-                    }
-                    if (part != null) {
-                        Pattern p = Pattern.compile(patternStr);
-                        if (!p.matcher(part).matches()) {
-                            return false;
-                        }
+        // 4. (Optional) Validate each component using rules
+        Map<String, String> rules = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);//TODO: check if rules is empty
+        if (rules != null && !rules.isEmpty()) {
+            for (String groupName : groupNames) {
+                String ruleRegex = rules.get(groupName);
+                if (ruleRegex != null) {
+                    String value = matcher.group(groupName);
+                    if (!value.matches(ruleRegex)) {
+                        return false;
                     }
                 }
-                return true;
-            } catch (Exception ex) {
-                log.error(ex.getMessage(), ex);
-                return false;
             }
         }
+
         return true;
     }
     private static String escapeForCharClass(String sep) {
