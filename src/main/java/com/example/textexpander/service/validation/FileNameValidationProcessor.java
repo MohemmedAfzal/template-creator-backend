@@ -4,11 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -45,65 +44,85 @@ public class FileNameValidationProcessor {
         }
     }
 
-    private boolean validate(
-            String destinationAccountId,
-            String fileName,
-            String agreementId,
-            String destinationChannelId
-    ) {
-        // 1. Get the macro pattern
-        String macroPattern = fileNameValidationService.getFilePatternHavingMacros(
-                destinationAccountId, agreementId, destinationChannelId);
+    private boolean validate(String destinationAccountId, String fileName, String agreementId, String destinationChannelId) {
+        if (fileName == null || fileName.isEmpty()) return false;
+        try {
+            // Get the macro pattern
+            String macroPattern = fileNameValidationService.getFilePatternHavingMacros(destinationAccountId, agreementId, destinationChannelId);
 
-        if (macroPattern == null) {
-            // No pattern to validate against, accept any file name
-            return true;
-        }
+            if (macroPattern == null) {
+                log.info("No macro pattern found for agreement {} or channel {} ", agreementId, destinationChannelId);
+                return true;
+            }
 
-        // 2. Build regex from macro pattern
-        StringBuilder regexBuilder = new StringBuilder();
-        Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
-        int lastEnd = 0;
-        List<String> groupNames = new ArrayList<>();
-        while (m.find()) {
-            regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd, m.start())));
-            regexBuilder.append("(?<").append(m.group(1)).append(">.+?)");
-            groupNames.add(m.group(1));
-            lastEnd = m.end();
-        }
-        regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd)));
+            // Build global regex from macro pattern
+            StringBuilder regexBuilder = new StringBuilder();
+            Matcher m = Pattern.compile("<([a-zA-Z0-9_]+)>").matcher(macroPattern);
+            int lastEnd = 0;
+            List<String> groupNames = new ArrayList<>();
+            while (m.find()) {
+                regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd, m.start())));
+                regexBuilder.append("(?<").append(m.group(1)).append(">.+?)");
+                groupNames.add(m.group(1));
+                lastEnd = m.end();
+            }
+            regexBuilder.append(Pattern.quote(macroPattern.substring(lastEnd)));
 
-        Pattern pattern = Pattern.compile(regexBuilder.toString());
-        Matcher matcher = pattern.matcher(fileName);
+            Pattern pattern = Pattern.compile(regexBuilder.toString());
+            Matcher matcher = pattern.matcher(fileName);
 
-        // 3. If regex doesn't match, invalid
-        if (!matcher.matches()) {
-            return false;
-        }
+            // If global regex doesn't match with filename, invalid
+            if (!matcher.matches()) {
+                log.info("File name {} does not match pattern {} ", fileName, macroPattern);
+                return false;
+            }
 
-        // 4. (Optional) Validate each component using rules
-        Map<String, String> rules = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);//TODO: check if rules is empty
-        if (rules != null && !rules.isEmpty()) {
+            // Validate each component using rules
+            List<FileNameValidationService.ParameterDto> rules = fileNameValidationService.findValidationRuleByDestinationAccountId(destinationAccountId);
+
+            if (rules == null || rules.isEmpty() || rules.size() != groupNames.size()) {
+                log.info("Rules {} does not exist for components in macro {}", rules, groupNames);
+                return false;
+            }
+
             for (String groupName : groupNames) {
-                String ruleRegex = rules.get(groupName);
-                if (ruleRegex != null) {
+                Optional<FileNameValidationService.ParameterDto> ruleOpt = rules.stream()
+                        .filter(r -> r.getAccountId().equals(groupName))
+                        .findFirst();
+
+                if (ruleOpt.isPresent()) {
+                    FileNameValidationService.ParameterDto rule = ruleOpt.get();
+                    String rulePattern = rule.getRegexPattern();
                     String value = matcher.group(groupName);
-                    if (!value.matches(ruleRegex)) {
+
+                    if (rule.getParameterType() == FileNameValidationService.ParameterType.REGEX) {
+                        if (!value.matches(rulePattern)) {
+                            log.info("{} does not match with the rule {}'s regex pattern {} ", value, groupName, rulePattern);
+                            return false;
+                        }
+                    } else if (rule.getParameterType() == FileNameValidationService.ParameterType.LIST) {
+                        // Split by comma (or another delimiter if your pattern uses something else)
+                        List<String> allowedValues = Arrays.stream(rulePattern.split(","))
+                                .map(String::trim)
+                                .collect(Collectors.toList());
+                        if (!allowedValues.contains(value)) {
+                            log.info("{} is not a valid value for rule {}. Allowed values: {}", value, groupName, allowedValues);
+                            return false;
+                        }
+                    } else {
+                        log.info("Unknown ParameterType for groupName: {}", groupName);
                         return false;
                     }
+                } else {
+                    log.info("File Rejected: Rule {} does not contains any regex pattern", groupName);
+                    return false;
                 }
             }
-        }
 
-        return true;
-    }
-    private static String escapeForCharClass(String sep) {
-        // Escape only char-class special characters
-        StringBuilder sb = new StringBuilder();
-        for (char c : sep.toCharArray()) {
-            if ("\\^-[]".indexOf(c) >= 0) sb.append('\\');
-            sb.append(c);
+            return true;
+        } catch (Exception e) {
+            log.error("Error {}",e.getMessage(), e);
+            return false;
         }
-        return sb.toString();
     }
 }
