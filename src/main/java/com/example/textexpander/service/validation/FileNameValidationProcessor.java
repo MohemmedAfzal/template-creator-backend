@@ -102,11 +102,10 @@ public class FileNameValidationProcessor {
                         }
                     } else if (rule.getParameterType() == FileNameValidationService.ParameterType.LIST) {
                         // Split by comma (or another delimiter if your pattern uses something else)
-                        List<String> allowedValues = Arrays.stream(rulePattern.split(","))
-                                .map(String::trim)
-                                .collect(Collectors.toList());
-                        if (!allowedValues.contains(value)) {
-                            log.info("{} is not a valid value for rule {}. Allowed values: {}", value, groupName, allowedValues);
+                        boolean isValuePresentInList = Arrays.stream(rulePattern.split(","))
+                                .map(String::trim).anyMatch(s->s.equalsIgnoreCase(value));
+                        if (!isValuePresentInList) {
+                            log.info("{} is not a valid value for rule {}", value, groupName);
                             return false;
                         }
                     } else {
