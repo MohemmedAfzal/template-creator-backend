@@ -2,14 +2,11 @@ package com.example.textexpander.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Date;
 
-import static javax.crypto.Cipher.SECRET_KEY;
 
 @Component
 public class JwtUtil {
