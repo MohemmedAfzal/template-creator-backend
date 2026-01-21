@@ -1,5 +1,6 @@
 package com.example.textexpander.controller;
 
+import com.collablynk.accounts.security.ClAuthenticationToken;
 import com.example.textexpander.service.validation.FileNameValidationProcessor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,7 +15,8 @@ public class FileNameValidationController {
     }
 
     @GetMapping("validate/{accountId}/{fileName}")
-    public String validate(@PathVariable String accountId, @PathVariable String fileName) {
+    public String validate(@PathVariable String accountId, @PathVariable String fileName, ClAuthenticationToken auth) {
+        System.out.println(auth);
         return fileNameValidationProcessor.process(fileName, accountId);
     }
 }

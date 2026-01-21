@@ -13,7 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import static com.collablynk.accounts.security.config.ClServiceConfigurer.clService;
 
 @Configuration
 public class SecurityConfig {
@@ -24,24 +24,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .with(clService(), cl -> {})
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Allow public pages and static assets
-                        .requestMatchers(
-                                new AntPathRequestMatcher("/login"),
-                                new AntPathRequestMatcher("/signup"),
-        new AntPathRequestMatcher("/validate/**")
-//                                new AntPathRequestMatcher("/css/**"),
-//                                new AntPathRequestMatcher("/js/**")
-                        ).permitAll()
+                        .requestMatchers("/login", "/signup", "/validate/**").authenticated()
                         // Allow signup/login API calls
-                        .requestMatchers(new AntPathRequestMatcher("/api/auth/**")).permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         // Protect all other APIs
-                        .requestMatchers(new AntPathRequestMatcher("/api/admin/**")).hasRole("ADMIN")
-                                .requestMatchers(new AntPathRequestMatcher("/api/user/**")).hasRole("USER")
-                        .requestMatchers(new AntPathRequestMatcher("/api/**")).authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                .requestMatchers("/api/user/**").hasRole("USER")
+                        .requestMatchers("/api/**").authenticated()
 //                        .requestMatchers(new AntPathRequestMatcher("/admin.html")).hasRole("ADMIN")
 //                        .requestMatchers(new AntPathRequestMatcher("/user.html")).hasRole("USER")
                         .anyRequest().authenticated()
@@ -50,7 +45,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable);
 
-        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+//        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
