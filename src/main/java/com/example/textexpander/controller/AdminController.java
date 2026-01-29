@@ -1,5 +1,6 @@
 package com.example.textexpander.controller;
 
+import com.example.textexpander.dto.Stats;
 import com.example.textexpander.repository.SignatureRepository;
 import com.example.textexpander.repository.TemplateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,5 +79,17 @@ public class AdminController {
         Template tpl = templateRepo.findById(id).orElseThrow();
         tpl.setPublished(published);
         return templateRepo.save(tpl);
+    }
+
+    @GetMapping("/stats")
+    public Stats getStats(){
+        Stats stats = new Stats();
+        var totalTemplates = templateRepo.count();
+        var totalDraftTemplates = templateRepo.countByPublished(false);
+        stats.setTotalSignatures(signatureRepo.count());
+        stats.setTotalTemplates(totalTemplates);
+        stats.setTotalDraftTemplates(totalDraftTemplates);
+        stats.setTotalPublishedTemplates(totalTemplates - totalDraftTemplates);
+        return stats;
     }
 }

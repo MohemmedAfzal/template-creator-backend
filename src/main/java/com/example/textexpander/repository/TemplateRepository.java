@@ -9,4 +9,6 @@ public interface TemplateRepository extends JpaRepository<Template, Long> {
     List<Template> findByGroupIdAndPublishedTrue(String groupId);
 
     List<Template> findByGroupId(String groupId);
+
+    Long countByPublished(boolean published);
 }
